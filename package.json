@@ -1,0 +1,25 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "server for messenger",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "Kiryl Aleksandrovich",
+  "license": "ISC",
+  "dependencies": {
+    "googleapis": "^40.0.0",
+    "http": "0.0.0",
+    "socket.io": "^2.2.0",
+    "ws": "^7.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^5.16.0",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-plugin-import": "^2.17.2",
+    "eslint-plugin-jsx-a11y": "^6.2.1",
+    "eslint-plugin-react": "^7.13.0",
+    "webpack": "^4.32.2"
+  }
+}

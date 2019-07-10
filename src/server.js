@@ -1,11 +1,11 @@
+const userSchema = require('./user-schema');
+const messageSchema = require('./message-schema');
+const roomsSchema = require('./room-schema');
 const mongoose = require('mongoose');
 const express = require('express');
 const bodyParser = require('body-parser');
 const server = require('http').createServer();
 const io = require('socket.io')(server);
-const userSchema = require('./user-schema');
-const messageSchema = require('./message-schema');
-const roomsSchema = require('./room-schema');
 
 mongoose.connect('mongodb://localhost/messDB', { useNewUrlParser: true });
 const db = mongoose.connection;
@@ -74,6 +74,24 @@ app.get('/clients_list', (req, res) => {
       res.send(clientsEmails);
     })
     .catch((err) => (err));
+});
+
+app.post('/select_interlocutor', (req, res) => {
+  User.find({ email: {$in: [req.body.email, req.body.interloc]}}, (err, data) => {
+    if (err) { console.log(err); return }
+    console.log(data[1]._id > data[0]._id);
+  })
+
+  // Room.findOne({ name: req.body.roomName }, (err, data) => {
+  //   if (err) { console.log(err); return }
+  //   if (!data) {
+  //     const room = new Room({ name: req.body.roomName, creator: req.body.email, members: [...req.body.addingPeople, req.body.email] });
+  //     room.save();
+  //     res.send({ isCreated: true });
+  //   } else {
+  //     res.send({ isCreated: false });
+  //   }
+  // });
 });
 
 app.post('/create_room', (req, res) => {

@@ -7,7 +7,7 @@ const bodyParser = require('body-parser');
 const server = require('http').createServer();
 const io = require('socket.io')(server);
 
-mongoose.connect('mongodb://localhost/messDB', { useNewUrlParser: true });
+mongoose.connect('mongodb://mongodb:27017/messDB', { useNewUrlParser: true });
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function () {

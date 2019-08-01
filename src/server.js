@@ -34,6 +34,7 @@ app.post('/login', (req, res) => {
   User.findOne({ email: req.body.email }, (err, data) => {
     if (err) { console.log(err) }
     if (!data) {
+      console.log('no client', data);
       res.send('no_such_client');
       return;
     }
@@ -51,71 +52,76 @@ app.get('/rooms', (req, res) => {
   if (req.url.search(/[^=]\w*[.]*\w+@.+/) !== -1) {
     clientEmail = req.url.match(/[^=]\w*[.]*\w+@.+/)[0];
   }
-  console.log(clientEmail, 'client get rooms');
   const roomsArr = [];
+  const privateRoomsArr = [];
+  console.log('client', clientEmail, 'get rooms');
   Room.find({}, (err, data) => {
     data.forEach((el) => {
-      if (el.members.includes(clientEmail)) {
+      if (el.members.includes(clientEmail) && !el.privateRoom) {
         roomsArr.push(el.name);
+      } else if (el.members.includes(clientEmail) && el.privateRoom) {
+        privateRoomsArr.push(el);
       }
     });
-    res.send(roomsArr);
+    res.send({ roomsArr, privateRoomsArr }); 
   });
 });
 
 app.get('/clients_list', (req, res) => {
   const clientsEmails = [];
+  console.log('get clients list');
   User.find({}, (err, users) => {
     if (err) return console.log(err);
     users.forEach((element) => {
       clientsEmails.push(element.email);
     });
   }).then(() => {
-      res.send(clientsEmails);
-    })
+    res.send(clientsEmails);
+  })
     .catch((err) => (err));
 });
 
-app.post('/select_interlocutor', (req, res) => {
-  User.find({ email: {$in: [req.body.email, req.body.interloc]}}, (err, data) => {
-    if (err) { console.log(err); return }
-    console.log(data[1]._id > data[0]._id);
-  })
-
-  // Room.findOne({ name: req.body.roomName }, (err, data) => {
-  //   if (err) { console.log(err); return }
-  //   if (!data) {
-  //     const room = new Room({ name: req.body.roomName, creator: req.body.email, members: [...req.body.addingPeople, req.body.email] });
-  //     room.save();
-  //     res.send({ isCreated: true });
-  //   } else {
-  //     res.send({ isCreated: false });
-  //   }
-  // });
-});
-
 app.post('/create_room', (req, res) => {
+  console.log('creating room', [req.body.roomName, req.body.addingPeople, req.body.email, req.body.privateRoom]);
   Room.findOne({ name: req.body.roomName }, (err, data) => {
     if (err) { console.log(err); return }
     if (!data) {
-      const room = new Room({ name: req.body.roomName, creator: req.body.email, members: [...req.body.addingPeople, req.body.email] });
-      room.save();
-      res.send({ isCreated: true });
+      const room = new Room({ name: req.body.roomName, creator: req.body.email, members: [...req.body.addingPeople, req.body.email], privateRoom: req.body.privateRoom });
+      room.save((err, room) => {
+        res.send({ isCreated: true, roomName: room.roomName });
+      });
     } else {
+      console.log(['not created']);
       res.send({ isCreated: false });
     }
   });
 });
 
-app.post('/join_to_room', (req, res) => {
+app.post('/get_room_messages', (req, res) => {
+  console.log('joining room', req.body.roomName);
   Message.find({ roomName: req.body.roomName }, (err, data) => {
     if (err) { console.log(err); return }
     res.send(data);
   })
 });
 
+// app.post('/get_messages', (req, res) => {
+//   let roomMessagesMap = {};
+//   req.body.roomsNames.forEach((roomName, index) => {
+//     Message.find({ roomName: roomName }, (err, data) => {
+//       if (err) { console.log(err); return }
+//       roomMessagesMap[roomName] = data;
+//     }).then(() => {
+//       if (index === roomsNames.length - 1) {
+//         res.send(roomMessagesMap);
+//       }
+//     });
+//   });
+// });
+
 app.post('/register_user', (req, res) => {
   const { details } = req.body;
+  console.log(details);
   User.findOne({ email: details.email }, (err, data) => {
     if (data) {
       res.send({ error: 'This email is already registered' });
@@ -132,6 +138,7 @@ app.post('/register_user', (req, res) => {
 app.listen(port, () => {
   console.log('listening port:', port);
 });
+
 //                                                                      SOCKET.IO
 
 server.listen(8000);
@@ -151,26 +158,23 @@ io.on('connection', (client) => {
   client.join(client.roomName);
 
   client.on('message', function (data) {
-    const message = {
-      email: data.email,
-      mess: data.mess,
-      time: data.time,
-      roomName: data.roomName
-    }
-    const saveMessage = new Message(message);
+    console.log(data);
+    const { email, mess, time, roomName } = data;
+    const saveMessage = new Message({ email, mess, time, roomName });
     saveMessage.save((err) => { if (err) console.log(err); })
-    client.broadcast.to(data.roomName).emit('message', message);
-  })
+    client.broadcast.to(data.roomName).emit('message', { email, mess, time, roomName });
+  });
 
-  client.on('change_room', function (data) {
-    client.leave(data.currentRoom);
-    client.join(data.stateRoom);
-  })
+  client.on('joinToRooms', (roomsList) => {
+    roomsList.forEach((room) => {
+      client.join(room);
+    });
+  });
 
   client.on('disconnect', (reason) => {
     console.log(reason, client.name);
     if (reason === 'io server disconnect') {
       client.connect();
     }
-  })
+  });
 })
